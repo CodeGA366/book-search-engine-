@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 interface JwtPayload {
-  _id: unknown;
+  _id: string;
   username: string;
   email: string,
 }

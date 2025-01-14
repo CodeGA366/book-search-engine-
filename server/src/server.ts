@@ -1,11 +1,12 @@
-import express, { Express, Application } from 'express';
+import express, { Application } from 'express';
 import path from 'node:path';
-import db from './config/connection.js';
+import mongooseConnection from './config/connection.js';
 import routes from './routes/index.js';
 import { ApolloServer } from '@apollo/server';
-import { typeDefs } from './graphql/typeDefs';
-import { resolvers } from './graphql/resolvers';
-import { authenticateToken } from './services/auth';
+import { typeDefs } from './graphql/typeDefs.js';
+import { resolvers } from './graphql/resolvers.js';
+import { authenticateToken } from './services/auth.js';
+import { expressMiddleware } from '@apollo/server/express4'; // Import expressMiddleware
 
 // Define the context type
 interface Context {
@@ -15,6 +16,7 @@ interface Context {
     };
 }
 
+// Create an instance of Express
 const app: Application = express();
 const PORT = process.env.PORT || 3001;
 
@@ -31,9 +33,9 @@ const server = new ApolloServer<Context>({
     resolvers,
 });
 
-// Start the Apollo Server
+// Start the Apollo Server and apply middleware
 server.start().then(() => {
-    app.use('/graphql', expressMiddleware(server)); // Use Apollo Server's middleware
+    app.use('/graphql', expressMiddleware(server) as unknown as express.RequestHandler); // Correctly apply the middleware
 });
 
 // Serve static assets if in production
@@ -45,13 +47,8 @@ if (process.env.NODE_ENV === 'production') {
 app.use(routes);
 
 // Connect to the database and start the server
-db.once('open', () => {
-    const graphqlEndpoint = '/graphql'; // Define your GraphQL endpoint
+mongooseConnection.once('open', () => {
     app.listen(PORT, () => {
-        console.log(`🌍 Now listening on localhost:${PORT}${graphqlEndpoint}`);
+        console.log(`🌍 Now listening on localhost:${PORT}/graphql`);
     });
 });
-
-function expressMiddleware(server: ApolloServer<Context>): import("express-serve-static-core").RequestHandler<{}, any, any, import("qs").ParsedQs, Record<string, any>> {
-    throw new Error('Function not implemented.');
-}

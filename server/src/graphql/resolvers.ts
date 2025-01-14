@@ -1,4 +1,4 @@
-import User from '../models/User';
+import User from '../models/User.js';
 import bookSchema from '../models/Book';
 import { ApolloError } from 'apollo-server-core'; // Import ApolloError from apollo-server-core
 import bcrypt from 'bcrypt';

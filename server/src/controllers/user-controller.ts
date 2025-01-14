@@ -1,75 +1,92 @@
-import type { Request, Response } from 'express';
-// import user model
+import { Request, Response, NextFunction } from 'express';
 import User from '../models/User.js';
-// import sign token function from auth
 import { signToken } from '../services/auth.js';
 
-// get a single user by either their id or their username
-export const getSingleUser = async (req: Request, res: Response) => {
-  const foundUser = await User.findOne({
-    $or: [{ _id: req.user ? req.user._id : req.params.id }, { username: req.params.username }],
-  });
+// Get a single user by either their id or their username
+export const getSingleUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const foundUser = await User.findOne({
+            $or: [{ _id: req.user ? req.user._id : req.params.id }, { username: req.params.username }],
+        });
 
-  if (!foundUser) {
-    return res.status(400).json({ message: 'Cannot find a user with this id!' });
-  }
+        if (!foundUser) {
+            res.status(400).json({ message: 'Cannot find a user with this id!' });
+            return;
+        }
 
-  return res.json(foundUser);
+        res.json(foundUser);
+    } catch (error) {
+        next(error); // Pass the error to the next middleware
+    }
 };
 
-// create a user, sign a token, and send it back (to client/src/components/SignUpForm.js)
-export const createUser = async (req: Request, res: Response) => {
-  const user = await User.create(req.body);
+// Create a user, sign a token, and send it back
+export const createUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const user = await User.create(req.body);
 
-  if (!user) {
-    return res.status(400).json({ message: 'Something is wrong!' });
-  }
-  const token = signToken(user.username, user.password, user._id);
-  return res.json({ token, user });
+        if (!user) {
+            res.status(400).json({ message: 'Something is wrong!' });
+            return;
+        }
+
+        const token = signToken(user.username, user.password, user._id);
+        res.json({ token, user });
+    } catch (error) {
+        next(error); // Pass the error to the next middleware
+    }
 };
 
-// login a user, sign a token, and send it back (to client/src/components/LoginForm.js)
-// {body} is destructured req.body
-export const login = async (req: Request, res: Response) => {
-  const user = await User.findOne({ $or: [{ username: req.body.username }, { email: req.body.email }] });
-  if (!user) {
-    return res.status(400).json({ message: "Can't find this user" });
-  }
+// Login a user, sign a token, and send it back
+export const login = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const user = await User.findOne({ $or: [{ username: req.body.username }, { email: req.body.email }] });
+        if (!user) {
+            res.status(400).json({ message: "Can't find this user" });
+            return;
+        }
 
-  const correctPw = await user.isCorrectPassword(req.body.password);
+        const correctPw = await user.isCorrectPassword(req.body.password);
 
-  if (!correctPw) {
-    return res.status(400).json({ message: 'Wrong password!' });
-  }
-  const token = signToken(user.username, user.password, user._id);
-  return res.json({ token, user });
+        if (!correctPw) {
+            res.status(400).json({ message: 'Wrong password!' });
+        }
+
+        const token = signToken(user.username, user.password, user._id);
+        res.json({ token, user });
+    } catch (error) {
+        next(error); // Pass the error to the next middleware
+    }
 };
 
-// save a book to a user's `savedBooks` field by adding it to the set (to prevent duplicates)
-// user comes from `req.user` created in the auth middleware function
-export const saveBook = async (req: Request, res: Response) => {
-  try {
-    const updatedUser = await User.findOneAndUpdate(
-      { _id: req.user._id },
-      { $addToSet: { savedBooks: req.body } },
-      { new: true, runValidators: true }
-    );
-    return res.json(updatedUser);
-  } catch (err) {
-    console.log(err);
-    return res.status(400).json(err);
-  }
+// Save a book to a user's `savedBooks` field
+export const saveBook = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const updatedUser = await User.findOneAndUpdate(
+            { _id: req.user._id },
+            { $addToSet: { savedBooks: req.body } },
+            { new: true, runValidators: true }
+        );
+        res.json(updatedUser);
+    } catch (error) {
+        next(error); // Pass the error to the next middleware
+    }
 };
 
-// remove a book from `savedBooks`
-export const deleteBook = async (req: Request, res: Response) => {
-  const updatedUser = await User.findOneAndUpdate(
-    { _id: req.user._id },
-    { $pull: { savedBooks: { bookId: req.params.bookId } } },
-    { new: true }
-  );
-  if (!updatedUser) {
-    return res.status(404).json({ message: "Couldn't find user with this id!" });
-  }
-  return res.json(updatedUser);
+// Remove a book from `savedBooks`
+export const deleteBook = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const updatedUser = await User.findOneAndUpdate(
+            { _id: req.user._id },
+            { $pull: { savedBooks: { bookId: req.params.bookId } } },
+            { new: true }
+        );
+        if (!updatedUser) {
+            res.status(404).json({ message: "Couldn't find user with this id!" });
+            return;
+        }
+        res.json(updatedUser);
+    } catch (error) {
+        next(error); // Pass the error to the next middleware
+    }
 };
